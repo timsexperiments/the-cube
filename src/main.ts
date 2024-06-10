@@ -35,11 +35,12 @@ scene.add(ambientLight);
 // controls.enableDamping = true;
 
 const cube = new RubiksCube(camera, {
-  colors: [0x129178, 0xe69500, 0x277dd8, 0x8361ff, 0x232323, 0xe7e9e8],
+  // colors: [0x129178, 0xe69500, 0x277dd8, 0x8361ff, 0x232323, 0xe7e9e8],
   borderColor: 0x000000,
 });
 scene.add(cube);
 camera.lookAt(cube.position);
+cube.shuffle();
 
 const renderer = new THREE.WebGLRenderer({ canvas });
 renderer.setSize(sizes.width, sizes.height);
@@ -53,46 +54,6 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(sizes.width, sizes.height);
   renderer.setPixelRatio(window.devicePixelRatio);
-});
-
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'a') {
-    cube.rotate('x', 0, Math.PI / 2);
-  } else if (e.key === 's') {
-    cube.rotate('x', 0, -Math.PI / 2);
-  } else if (e.key === 'd') {
-    cube.rotate('x', 1, Math.PI / 2);
-  } else if (e.key === 'f') {
-    cube.rotate('x', 1, -Math.PI / 2);
-  } else if (e.key === 'g') {
-    cube.rotate('x', 2, Math.PI / 2);
-  } else if (e.key === 'h') {
-    cube.rotate('x', 2, -Math.PI / 2);
-  } else if (e.key === 'q') {
-    cube.rotate('y', 0, Math.PI / 2);
-  } else if (e.key === 'w') {
-    cube.rotate('y', 0, -Math.PI / 2);
-  } else if (e.key === 'e') {
-    cube.rotate('y', 1, Math.PI / 2);
-  } else if (e.key === 'r') {
-    cube.rotate('y', 1, -Math.PI / 2);
-  } else if (e.key === 't') {
-    cube.rotate('y', 2, Math.PI / 2);
-  } else if (e.key === 'y') {
-    cube.rotate('y', 2, -Math.PI / 2);
-  } else if (e.key === 'z') {
-    cube.rotate('z', 0, Math.PI / 2);
-  } else if (e.key === 'x') {
-    cube.rotate('z', 0, -Math.PI / 2);
-  } else if (e.key === 'c') {
-    cube.rotate('z', 1, Math.PI / 2);
-  } else if (e.key === 'v') {
-    cube.rotate('z', 1, -Math.PI / 2);
-  } else if (e.key === 'b') {
-    cube.rotate('z', 2, Math.PI / 2);
-  } else if (e.key === 'n') {
-    cube.rotate('z', 2, -Math.PI / 2);
-  }
 });
 
 canvas.addEventListener('dblclick', () => {

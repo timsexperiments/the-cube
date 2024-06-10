@@ -16,6 +16,7 @@ export class RubiksCube extends THREE.Object3D {
   private rotationAxis: 'x' | 'y' | 'z' | null = null;
   private rotationSection: 0 | 1 | 2 | null = null;
   private rotationAngle: number | null = null;
+  private isRotating: boolean = false;
 
   constructor(
     private readonly camera: THREE.Camera,
@@ -90,6 +91,7 @@ export class RubiksCube extends THREE.Object3D {
     window.addEventListener('mousedown', this.onMouseDown.bind(this));
     window.addEventListener('mousemove', this.onMouseMove.bind(this));
     window.addEventListener('mouseup', this.onMouseUp.bind(this));
+    window.addEventListener('keydown', this.onKeyboardRotation.bind(this));
   }
 
   onMouseDown(event: MouseEvent) {
@@ -119,7 +121,6 @@ export class RubiksCube extends THREE.Object3D {
     if (Math.abs(deltaX) < 10 || Math.abs(deltaY) < 10) return;
 
     const { x, y, z } = this.initialIntersect.normal ?? {};
-    console.log(x, y, z);
 
     if (
       this.rotationAxis !== null &&
@@ -169,6 +170,91 @@ export class RubiksCube extends THREE.Object3D {
     this.rotationAxis = null;
     this.rotationSection = null;
     this.rotationAngle = null;
+  }
+
+  private onKeyboardRotation(event: KeyboardEvent): void {
+    switch (event.key) {
+      case 'ArrowUp':
+      case 'w':
+      case 'W':
+        this.rotateCube('x', 'clockwise');
+        break;
+      case 'ArrowDown':
+      case 's':
+      case 'S':
+        this.rotateCube('x', 'counterclockwise');
+        break;
+      case 'ArrowLeft':
+      case 'a':
+      case 'A':
+        this.rotateCube('y', 'clockwise');
+        break;
+      case 'ArrowRight':
+      case 'd':
+      case 'D':
+        this.rotateCube('y', 'counterclockwise');
+        break;
+    }
+  }
+
+  public rotateCube(
+    axis: 'x' | 'y',
+    direction: 'clockwise' | 'counterclockwise',
+    duration: number = 500,
+  ): void {
+    if (this.isRotating) return;
+    this.isRotating = true;
+    const targetAngle = direction === 'clockwise' ? Math.PI / 2 : -Math.PI / 2;
+
+    this.animateCubeRotation(axis, targetAngle, duration);
+  }
+
+  private animateCubeRotation(
+    axis: 'x' | 'y',
+    targetAngle: number,
+    duration: number,
+  ): void {
+    const clock = new THREE.Clock();
+    const startTime = clock.getElapsedTime();
+
+    const animate = () => {
+      const elapsedTime = clock.getElapsedTime() - startTime;
+      const progress = Math.min(elapsedTime / (duration / 1000), 1);
+      const easedProgress = easeInOutCubic(progress);
+      const currentAngle = targetAngle * easedProgress;
+
+      this.rotateEntireCube(axis, currentAngle - (this.rotationAngle || 0));
+      this.rotationAngle = currentAngle;
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        this.isRotating = false;
+        this.rotationAngle = null;
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }
+
+  private rotateEntireCube(axis: 'x' | 'y' | 'z', angle: number): void {
+    const pivot = new THREE.Object3D();
+    const center = new THREE.Vector3();
+
+    // Calculate the center of the Rubik's Cube
+    const boundingBox = new THREE.Box3().setFromObject(this);
+    boundingBox.getCenter(center);
+
+    pivot.position.copy(center);
+    this.add(pivot);
+
+    // Apply rotation using the pivot
+    this.rotateCubesAroundPivot(
+      pivot,
+      this.children as THREE.Object3D[],
+      axis,
+      angle,
+    );
   }
 
   private getSection(position: number): 0 | 1 | 2 {
@@ -323,17 +409,72 @@ export class RubiksCube extends THREE.Object3D {
   public rotate(
     axis: 'x' | 'y' | 'z',
     section: 0 | 1 | 2,
-    angle: number,
+    direction: 'clockwise' | 'counterclockwise',
+    duration: number = 500,
+    callback?: () => void,
   ): void {
-    const cubes = this.getSectionCubes(axis, section);
+    const targetAngle = direction === 'clockwise' ? Math.PI / 2 : -Math.PI / 2;
+    this.animateSectionRotation(axis, section, targetAngle, duration, callback);
+  }
 
-    if (cubes.length === 0) {
-      return;
-    }
+  private animateSectionRotation(
+    axis: 'x' | 'y' | 'z',
+    section: 0 | 1 | 2,
+    targetAngle: number,
+    duration: number,
+    callback?: () => void,
+  ): void {
+    const clock = new THREE.Clock();
+    const startTime = clock.getElapsedTime();
+    const initialAngle = 0; // Starting from 0 for simplicity
 
-    const center = this.calculateGroupCenter(cubes);
-    const pivot = this.createPivot(center);
-    this.rotateCubesAroundPivot(pivot, cubes, axis, angle);
+    const animate = () => {
+      const elapsedTime = clock.getElapsedTime() - startTime;
+      const progress = Math.min(elapsedTime / (duration / 1000), 1);
+      const easedProgress = easeInOutCubic(progress);
+      const currentAngle = initialAngle + targetAngle * easedProgress;
+
+      this.applyRotation(
+        axis,
+        section,
+        currentAngle - (this.rotationAngle ?? 0),
+      );
+      this.rotationAngle = currentAngle;
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        this.isRotating = false;
+        this.rotationAngle = null;
+        callback && callback(); // Call the callback function if provided
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }
+
+  public shuffle(turns: number = 25): void {
+    const axes: ('x' | 'y' | 'z')[] = ['x', 'y', 'z'];
+    const sections: (0 | 1 | 2)[] = [0, 1, 2];
+    const directions: ('clockwise' | 'counterclockwise')[] = [
+      'clockwise',
+      'counterclockwise',
+    ];
+
+    const shuffleTurn = (currentTurn: number) => {
+      if (currentTurn < turns) {
+        const axis = axes[Math.floor(Math.random() * axes.length)];
+        const section = sections[Math.floor(Math.random() * sections.length)];
+        const direction =
+          directions[Math.floor(Math.random() * directions.length)];
+
+        this.rotate(axis, section, direction, 500, () => {
+          shuffleTurn(currentTurn + 1);
+        });
+      }
+    };
+
+    shuffleTurn(0);
   }
 }
 
@@ -454,4 +595,8 @@ function nearestClampDistance(
   }
 
   return nearest - angle;
+}
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
